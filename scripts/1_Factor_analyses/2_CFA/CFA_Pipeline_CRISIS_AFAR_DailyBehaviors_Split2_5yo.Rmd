@@ -1,0 +1,160 @@
+---
+title: "CRISIS_Factor_Pipeline CFA Daily Behaviors Split 2_Recoded_drop1 5yo 3_25"
+author: "Aki Nikolaidis, Paul Bloom, Michelle VanTieghem"
+date: "3/25/21"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+Edited by BV and JD 8/25/20 for CRISIS AFAR
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, message = F}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+
+```
+
+
+## CONFIRMATORY FACTOR ANALYSIS
+
+
+```{r}
+All_Site_Split2 <- read.csv("03_25_Merged_Splits_across_All_sites.csv" , header = TRUE, sep = ",")
+
+#recode Not Applicable in online interactions w adults and peers to 1
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(onlineinteractionpeers = ifelse(onlineinteractionpeers == 1, 1,
+                                         ifelse(onlineinteractionpeers ==2, 2,
+                                                ifelse(onlineinteractionpeers ==3, 3, 
+                                                       ifelse(onlineinteractionpeers ==4, 4,
+                                                              ifelse(onlineinteractionpeers ==5, 5,
+                                                                     ifelse(onlineinteractionpeers==6, 1, "check")))))))
+
+
+
+
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(onlineinteractionadults = ifelse(onlineinteractionadults == 1, 1, 
+                                          ifelse(onlineinteractionadults ==2, 2,
+                                                 ifelse(onlineinteractionadults ==3, 3,
+                                                        ifelse(onlineinteractionadults ==4, 4,
+                                                               ifelse(onlineinteractionadults ==5, 5,
+                                                                      ifelse(onlineinteractionadults==6, 1, "check")))))))
+
+
+#reverse code items to make direction the same (e.g., Higher number/selection, worsening problems), such that indicator of problem matches direction of other variables 
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(exerciseprior = ifelse(exerciseprior== 1, 5,
+                                 ifelse(exerciseprior ==2, 4,
+                                        ifelse(exerciseprior ==3, 3,
+                                               ifelse(exerciseprior ==4, 2,
+                                                      ifelse(exerciseprior ==5, 1, "check"))))))
+
+
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(outdoorsprior = ifelse(outdoorsprior== 1, 5,
+                                 ifelse(outdoorsprior ==2, 4,
+                                        ifelse(outdoorsprior ==3, 3,
+                                               ifelse(outdoorsprior ==4, 2,
+                                                      ifelse(outdoorsprior ==5, 1, "check"))))))
+
+
+All_Site_Split2$sleepdifficulties <- as.numeric(All_Site_Split2$sleepdifficulties)
+All_Site_Split2$onlineinteractionpeers <- as.numeric(All_Site_Split2$onlineinteractionpeers)
+All_Site_Split2$onlineinteractionadults <- as.numeric(All_Site_Split2$onlineinteractionadults)
+All_Site_Split2$exerciseprior <- as.numeric(All_Site_Split2$exerciseprior)
+All_Site_Split2$outdoorsprior <- as.numeric(All_Site_Split2$outdoorsprior)
+
+All_Site_Split2 <- All_Site_Split2 %>% filter(years_2 >= 5)
+describe(All_Site_Split2$years_2)
+
+domain_data <- All_Site_Split2 %>% select(priorweekdaybedtime, priorweekendbedtime, priorhoursofsleepweekdays, priorhoursofsleepweekend, sleepdifficulties, wakeupduringnight, exerciseprior, outdoorsprior, priorsocialmedia, priorvideogames, onlineinteractionpeers, onlineinteractionadults)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+cfa_model = 'DailyBxs =~ sleepdifficulties +wakeupduringnight +priorweekendbedtime+ priorweekdaybedtime +priorhoursofsleepweekend+ priorhoursofsleepweekdays+outdoorsprior+ exerciseprior+ onlineinteractionpeers +priorsocialmedia +onlineinteractionadults + priorvideogames' 
+
+cfa_fit <- cfa(cfa_model, data = domain_data,
+                 ordered=c("sleepdifficulties","wakeupduringnight","priorweekendbedtime", "priorweekdaybedtime", "priorhoursofsleepweekend", "priorhoursofsleepweekdays", "outdoorsprior", "exerciseprior",  "onlineinteractionpeers","priorsocialmedia", "onlineinteractionadults", "priorvideogames"))
+                   
+
+summary(cfa_fit, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+
+```
+
+
+```{r}
+cfa_model_2 = 'factor1 =~ sleepdifficulties +wakeupduringnight
+factor2 =~ priorweekendbedtime+ priorweekdaybedtime
+factor3 =~ priorhoursofsleepweekend+ priorhoursofsleepweekdays
+factor4 =~ outdoorsprior+ exerciseprior
+factor5 =~onlineinteractionpeers +priorsocialmedia +onlineinteractionadults +priorvideogames'
+
+
+cfa_fit_2 <- cfa(cfa_model_2, data = domain_data,
+                 ordered=c("sleepdifficulties","wakeupduringnight","priorweekendbedtime", "priorweekdaybedtime", "priorhoursofsleepweekend", "priorhoursofsleepweekdays", "outdoorsprior", "exerciseprior",  "onlineinteractionpeers","priorsocialmedia", "onlineinteractionadults", "priorvideogames"))
+
+summary(cfa_fit_2, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit_2, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+
+```
+
+
+
+```{r}
+omega(domain_data, fm = "wls", rotate = "oblimin")
+```
+
+```{r}
+
+anova(cfa_fit, cfa_fit_2)
+
+```
+
+

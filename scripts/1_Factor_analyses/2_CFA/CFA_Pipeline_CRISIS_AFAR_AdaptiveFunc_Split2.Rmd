@@ -1,0 +1,84 @@
+---
+title: "CRISIS_Factor_Pipeline CFA Adaptive Func  Split 2 4/6 play entertain recoded"
+author: "Aki Nikolaidis, Paul Bloom, Michelle VanTieghem"
+date: "4/6/21"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+Edited by BV and JD 8/25/20 for CRISIS AFAR
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, message = F}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+
+```
+
+
+## CONFIRMATORY FACTOR ANALYSIS
+
+# Adaptive Functioning
+```{r}
+All_Site_Split2 <- read.csv("03_25_Merged_Splits_across_All_sites.csv" , header = TRUE, sep = ",")
+#rescaling
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(playentertain = ifelse(playentertain == 5, 1,
+                                 ifelse(playentertain == 6, 2,
+                                        ifelse(playentertain ==7, 3,
+                                               ifelse(playentertain ==8, 4, 
+                                                      ifelse(playentertain==1, 1,
+                                                             ifelse(playentertain ==2,2,
+                                                                    ifelse(playentertain==3, 3,
+                                                                           ifelse(playentertain==4,4, "check")))))))))
+
+domain_data <- All_Site_Split2 %>% select(playentertain, structureactivities, selfcareadl, mealtimefood)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+cfa_model <- 'Adaptive_Func =~ selfcareadl+structureactivities+ mealtimefood+ playentertain' 
+
+cfa_fit <- cfa(cfa_model, data = domain_data,
+               ordered=c("selfcareadl","structureactivities", "mealtimefood", "playentertain"))
+
+cfa_fit <- cfa(cfa_model, data = domain_data)
+
+summary(cfa_fit, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+```
+
+
+#Omega
+```{r}
+
+omega(domain_data)
+```

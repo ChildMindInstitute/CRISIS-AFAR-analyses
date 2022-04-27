@@ -1,0 +1,130 @@
+---
+title: "CRISIS_Factor_Pipeline CFA Split 2"
+author: "Aki Nikolaidis, Paul Bloom, Michelle VanTieghem"
+date: "3/25/2020"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+Edited by BV and JD 8/25/20 for CRISIS AFAR
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, message = F}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(apaTables)
+library(lavaan)
+library(sjmisc)
+
+```
+
+
+## CONFIRMATORY FACTOR ANALYSIS
+
+# COVID Worries
+```{r}
+All_Site_Split2 <- read.csv("03_25_Merged_Splits_across_All_sites.csv", header = TRUE, sep = ",")
+
+# All "6" for all of items get converted to a 1
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(readingtalking = ifelse(readingtalking == 1, 1,
+                                 ifelse(readingtalking ==2, 2,
+                                        ifelse(readingtalking ==3, 3,
+                                               ifelse(readingtalking ==4, 4,
+                                                      ifelse(readingtalking ==5, 5,
+                                                             ifelse(readingtalking==6, 1, "check")))))))
+
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(worriedyourself = ifelse(worriedyourself == 1, 1,
+                                 ifelse(worriedyourself ==2, 2,
+                                        ifelse(worriedyourself ==3, 3,
+                                               ifelse(worriedyourself ==4, 4,
+                                                      ifelse(worriedyourself ==5, 5,
+                                                             ifelse(worriedyourself==6, 1, "check")))))))
+
+
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(worriedothers = ifelse(worriedothers == 1, 1,
+                                 ifelse(worriedothers ==2, 2,
+                                        ifelse(worriedothers ==3, 3,
+                                               ifelse(worriedothers ==4, 4,
+                                                      ifelse(worriedothers ==5, 5,
+                                                             ifelse(worriedothers==6, 1, "check")))))))
+
+
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(worriedphysical = ifelse(worriedphysical == 1, 1,
+                                 ifelse(worriedphysical ==2, 2,
+                                        ifelse(worriedphysical ==3, 3,
+                                               ifelse(worriedphysical ==4, 4,
+                                                      ifelse(worriedphysical ==5, 5,
+                                                             ifelse(worriedphysical==6, 1, "check")))))))
+
+
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(worriedmental = ifelse(worriedmental == 1, 1,
+                                 ifelse(worriedmental ==2, 2,
+                                        ifelse(worriedmental ==3, 3,
+                                               ifelse(worriedmental ==4, 4,
+                                                      ifelse(worriedmental ==5, 5,
+                                                             ifelse(worriedmental==6, 1, "check")))))))
+
+
+All_Site_Split2$readingtalking <- as.numeric(All_Site_Split2$readingtalking)
+All_Site_Split2$worriedyourself <- as.numeric(All_Site_Split2$worriedyourself)
+All_Site_Split2$worriedothers <- as.numeric(All_Site_Split2$worriedothers)
+All_Site_Split2$worriedphysical <- as.numeric(All_Site_Split2$worriedphysical)
+All_Site_Split2$worriedmental <- as.numeric(All_Site_Split2$worriedmental)
+
+domain_data <- All_Site_Split2 %>% select(worriedyourself, worriedothers, worriedphysical, worriedmental, readingtalking)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+
+cfa_model <- 'covid_worries =~ worriedyourself + worriedphysical' 
+
+cfa_fit <- cfa(cfa_model, data = domain_data,
+            ordered=c("worriedyourself", "worriedphysical"))
+
+summary(cfa_fit, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+
+
+```
+
+
+
+#Omega
+```{r}
+
+#omega(domain_data)
+```
+

@@ -1,0 +1,201 @@
+---
+title: "CRISIS_Factor_Pipeline CFA Co Oc Pr Bx 3/25 Split 2"
+author: "Aki Nikolaidis, Paul Bloom, Michelle VanTieghem"
+date: "3/25/21"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+Edited by BV and JD 8/25/20 for CRISIS AFAR
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, message = F}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(dplyr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+
+```
+
+
+## CONFIRMATORY FACTOR ANALYSIS
+
+
+```{r}
+All_Site_Split2 <- read.csv("03_25_Merged_Splits_across_All_sites.csv" , header = TRUE, sep = ",")
+
+#Converting all ratings to severity score by problem behavior   
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbHyper_3M = ifelse(hyperactivity == "0", "0",  
+                               ifelse(hyperactivity == "1" & hyperactivityhowmuch == "1", "1",  
+                                      ifelse(hyperactivity == "1" & hyperactivityhowmuch == "2","2",  
+                                             ifelse(hyperactivity == "1" & hyperactivityhowmuch == "3","3",  
+                                                    ifelse(hyperactivity == "1" & hyperactivityhowmuch == "4","4", "check"))))))  
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbOnTask_3M = ifelse(stayingontask == "0", "0",  
+                                ifelse(stayingontask == "1" & stayingontaskhowmuch == "1", "1",  
+                                       ifelse(stayingontask == "1" & stayingontaskhowmuch == "2","2",  
+                                              ifelse(stayingontask == "1" & stayingontaskhowmuch == "3","3",  
+                                                     ifelse(stayingontask == "1" & stayingontaskhowmuch == "4","4", "check"))))))  
+
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbAngry_3M = ifelse(angrytemper == "0", "0",  
+                               ifelse(angrytemper == "1" & angrytemperhowmuch == "1", "1",  
+                                      ifelse(angrytemper == "1" & angrytemperhowmuch == "2","2",  
+                                             ifelse(angrytemper == "1" & angrytemperhowmuch == "3","3",  
+                                                    ifelse(angrytemper == "1" & angrytemperhowmuch == "4","4", "check"))))))      
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbVerbAgg_3M = ifelse(verbalaggression == "0", "0",  
+                                 ifelse(verbalaggression == "1" & verbalaggressionhowmuch == "1", "1",  
+                                        ifelse(verbalaggression == "1" & verbalaggressionhowmuch == "2","2",  
+                                               ifelse(verbalaggression == "1" & verbalaggressionhowmuch == "3","3",  
+                                                      ifelse(verbalaggression == "1" & verbalaggressionhowmuch == "4","4", "check"))))))      
+
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbPhysAgg_3M = ifelse(physicalaggression == "0", "0",  
+                                 ifelse(physicalaggression == "1" & physicalaggressionhowmuch == "1", "1",  
+                                        ifelse(physicalaggression == "1" & physicalaggressionhowmuch == "2","2",  
+                                               ifelse(physicalaggression == "1" & physicalaggressionhowmuch == "3","3",  
+                                                      ifelse(physicalaggression == "1" & physicalaggressionhowmuch == "4","4", "check"))))))      
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbDibInjS_3M = ifelse(injureself == "0", "0",  
+                                 ifelse(injureself == "1" & injureselfhowmuch == "1", "1",  
+                                        ifelse(injureself == "1" & injureselfhowmuch == "2","2",  
+                                               ifelse(injureself == "1" & injureselfhowmuch == "3","3",  
+                                                      ifelse(injureself == "1" & injureselfhowmuch == "4","4", "check"))))))      
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbDisobArg_3M = ifelse(disobedient == "0", "0",  
+                                  ifelse(disobedient == "1" & disobedienthowmuch == "1", "1",  
+                                         ifelse(disobedient == "1" & disobedienthowmuch == "2","2",  
+                                                ifelse(disobedient == "1" & disobedienthowmuch == "3","3",  
+                                                       ifelse(disobedient == "1" & disobedienthowmuch == "4","4", "check"))))))      
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbCrying_3M = ifelse(crying == "0", "0",  
+                                ifelse(crying == "1" & cryinghowmuch == "1", "1",  
+                                       ifelse(crying == "1" & cryinghowmuch == "2","2",  
+                                              ifelse(crying == "1" & cryinghowmuch == "3","3",  
+                                                     ifelse(crying == "1" & cryinghowmuch == "4","4", "check"))))))      
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbWorrySoc_3M = ifelse(worriedsocially == "0", "0",  
+                                  ifelse(worriedsocially == "1" & worriedsociallyhowmuch == "1", "1",  
+                                         ifelse(worriedsocially == "1" & worriedsociallyhowmuch == "2","2",  
+                                                ifelse(worriedsocially == "1" & worriedsociallyhowmuch == "3","3",  
+                                                       ifelse(worriedsocially == "1" & worriedsociallyhowmuch == "4","4", "check"))))))      
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbSep_3M = ifelse(separationworry == "0", "0",  
+                             ifelse(separationworry == "1" & separationworryhowmuch == "1", "1",  
+                                    ifelse(separationworry == "1" & separationworryhowmuch == "2","2",  
+                                           ifelse(separationworry == "1" & separationworryhowmuch == "3","3",  
+                                                  ifelse(separationworry == "1" & separationworryhowmuch == "4","4", "check"))))))      
+
+
+All_Site_Split2 <- All_Site_Split2 %>%  
+  mutate(ProbExcFear_3M = ifelse(fearful == "0", "0",  
+                                 ifelse(fearful == "1" & fearfulhowmuch == "1", "1",  
+                                        ifelse(fearful == "1" & fearfulhowmuch == "2","2",  
+                                               ifelse(fearful == "1" & fearfulhowmuch == "3","3",  
+                                                      ifelse(fearful == "1" & fearfulhowmuch == "4","4", "check"))))))
+
+
+
+All_Site_Split2 <- All_Site_Split2 %>% filter(years_2 >= 5)
+
+domain_data <- All_Site_Split2 %>% select(ProbHyper_3M, ProbOnTask_3M,ProbAngry_3M,ProbVerbAgg_3M,ProbPhysAgg_3M,ProbDibInjS_3M,ProbDisobArg_3M,ProbCrying_3M,ProbWorrySoc_3M, ProbSep_3M,ProbExcFear_3M)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+domain_data = domain_data %>% mutate_at(c(1:11), funs(as.numeric(.)))
+
+cfa_model = 'CoOcPrBxs =~ ProbPhysAgg_3M + ProbDibInjS_3M +ProbVerbAgg_3M + ProbDisobArg_3M +ProbAngry_3M + ProbSep_3M + ProbExcFear_3M +ProbWorrySoc_3M +   ProbCrying_3M+ProbOnTask_3M +  ProbHyper_3M' 
+
+cfa_fit <- cfa(cfa_model, data = domain_data,
+               ordered=c("ProbPhysAgg_3M","ProbDibInjS_3M", "ProbVerbAgg_3M","ProbDisobArg_3M","ProbAngry_3M","ProbSep_3M","ProbExcFear_3M","ProbWorrySoc_3M", "ProbCrying_3M","ProbOnTask_3M", "ProbHyper_3M"))
+
+summary(cfa_fit, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+
+
+```
+
+
+```{r}
+
+cfa_model_2 = 'factor1 =~ ProbPhysAgg_3M + ProbDibInjS_3M
+factor2 =~ ProbVerbAgg_3M +ProbDisobArg_3M +ProbAngry_3M
+factor3 =~ProbSep_3M +ProbExcFear_3M+ProbWorrySoc_3M + ProbCrying_3M
+factor4 =~ ProbOnTask_3M+ ProbHyper_3M'  
+
+   
+cfa_fit_2 <- cfa(cfa_model_2, data = domain_data,
+                 ordered=c("ProbPhysAgg_3M","ProbDibInjS_3M", "ProbVerbAgg_3M","ProbDisobArg_3M","ProbAngry_3M","ProbSep_3M","ProbExcFear_3M","ProbWorrySoc_3M", "ProbCrying_3M","ProbOnTask_3M", "ProbHyper_3M"))
+
+summary(cfa_fit_2, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit_2, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor' =lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+```
+
+#Omega
+```{r}
+
+
+omega(domain_data)
+```
+
+```{r}
+
+anova(cfa_fit, cfa_fit_2)
+
+```
+
+

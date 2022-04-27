@@ -1,0 +1,140 @@
+---
+title: "CRISIS_Factor_Pipeline CFA Split 2"
+author: "Aki Nikolaidis, Paul Bloom, Michelle VanTieghem"
+date: "3/25/2020"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+Edited by BV and JD 8/25/20 for CRISIS AFAR
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, message = F}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(apaTables)
+library(lavaan)
+library(sjmisc)
+
+```
+
+
+## CONFIRMATORY FACTOR ANALYSIS
+
+# COVID Worries
+```{r}
+All_Site_Split2 <- read.csv("03_25_Split_2_across_All_sites.csv", header = TRUE, sep = ",")
+
+# Positive Changes, Time Outside, Living Difficulty all reverse coded. & 6 converted to 1 for living difficulty 
+#recode positive change so that lower = better/positive changes 
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(positivechange = ifelse(positivechange == 1, 3,
+                                 ifelse(positivechange ==2, 2,
+                                        ifelse(positivechange ==3, 1, "check"))))
+
+#recode time outside so that higher number is less time outside 
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(timeoutside = ifelse(timeoutside == 1, 4,
+                                 ifelse(timeoutside ==2, 3,
+                                        ifelse(timeoutside ==3, 2,
+                                               ifelse(timeoutside ==4, 1, "check")))))
+
+
+#recode 6 to 1 for living difficulty 
+All_Site_Split2 <- All_Site_Split2 %>%
+  mutate(livingdifficulty = ifelse(livingdifficulty == 1, 1,
+                                 ifelse(livingdifficulty ==2, 2,
+                                        ifelse(livingdifficulty ==3, 3,
+                                               ifelse(livingdifficulty ==4, 4,
+                                                      ifelse(livingdifficulty ==5, 5,
+                                                             ifelse(livingdifficulty==6, 1, "check")))))))
+
+
+
+
+domain_data <- All_Site_Split2 %>% select(foodsecurity, livingdifficulty, financedifficulty, restrictionsstress, difficultycancellations, positivechange)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+
+cfa_model <- 'Lifechanges =~ positivechange+ foodsecurity + livingdifficulty +  financedifficulty + restrictionsstress + difficultycancellations' 
+
+cfa_fit <- cfa(cfa_model, data = domain_data,
+            ordered=c("positivechange", "foodsecurity","livingdifficulty", "financedifficulty","restrictionsstress", "difficultycancellations"))
+
+summary(cfa_fit, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+
+
+```
+
+
+```{r}
+
+cfa_model_2 = 'factor1 =~ positivechange
+factor2 =~ foodsecurity + livingdifficulty + financedifficulty
+factor3=~ restrictionsstress+ difficultycancellations' 
+
+cfa_fit_2 <- cfa(cfa_model_2, data = domain_data,
+            ordered=c("positivechange", "foodsecurity","livingdifficulty", "financedifficulty", "restrictionsstress", "difficultycancellations"))
+
+
+summary(cfa_fit_2, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit_2, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+        Indicator=rhs, 
+        B=est, 
+        SE=se, Z=z, 
+        Beta=std.all, 
+        sig=stars) %>% 
+kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+```
+
+#Omega
+```{r}
+
+#omega(domain_data)
+```
+
+```{r}
+
+anova(cfa_fit, cfa_fit_2)
+
+```
+
+

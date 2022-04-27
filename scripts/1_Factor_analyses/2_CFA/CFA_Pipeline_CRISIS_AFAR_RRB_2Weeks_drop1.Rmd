@@ -1,0 +1,129 @@
+---
+title: "CRISIS_Factor_Pipeline CFA RRB Split2 2 weeks Drop 1 3/25"
+date: "3/25/21"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+Edited by BV and JD 8/25/20 for CRISIS AFAR
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r, message = F}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+
+```
+
+
+## CONFIRMATORY FACTOR ANALYSIS
+
+# RRB
+```{r}
+All_Site_Combo <- read.csv("03_25_Merged_Splits_across_All_sites.csv", header = TRUE, sep = ",")
+#reverse code RRB Item:
+
+All_Site_Combo <- All_Site_Combo %>%
+  mutate(adjusttochange_2 = ifelse(adjusttochange_2 == 1, 5,
+                                 ifelse(adjusttochange_2 ==2, 4,
+                                        ifelse(adjusttochange_2 ==3, 3,
+                                               ifelse(adjusttochange_2 ==4, 2,
+                                                      ifelse(adjusttochange_2 ==5, 1, "check"))))))
+All_Site_Combo$adjusttochange <- as.numeric(All_Site_Combo$adjusttochange_2)
+                                            
+
+domain_data <- All_Site_Combo %>% select(repetitivemotor_2, sensoryseeking_2, ritualsroutines_2, adjusttochange_2, familyroutinechange_2, restrictedinterestactivity_2)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+cfa_model <- 'RRBs =~ sensoryseeking_2 + repetitivemotor_2+ ritualsroutines_2 + familyroutinechange_2 + restrictedinterestactivity_2' 
+
+
+
+cfa_fit <- cfa(cfa_model, data = domain_data,
+               ordered=c("sensoryseeking_2","repetitivemotor_2", "ritualsroutines_2", "familyroutinechange_2","restrictedinterestactivity_2"))
+
+summary(cfa_fit, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+
+
+```
+
+
+```{r}
+
+cfa_model_2 = 'factor1 =~ sensoryseeking_2 + repetitivemotor_2+ ritualsroutines_2
+factor2 =~ familyroutinechange_2+ restrictedinterestactivity_2'
+
+cfa_fit_2 <- cfa(cfa_model_2, data = domain_data,
+            ordered=c("sensoryseeking_2","repetitivemotor_2", "ritualsroutines_2", "familyroutinechange_2","restrictedinterestactivity_2"))
+
+summary(cfa_fit_2, fit.measures = TRUE)
+
+parameterEstimates(cfa_fit_2, standardized=TRUE) %>% 
+  filter(op == "=~") %>% 
+  mutate(stars = ifelse(pvalue < .001, "***", 
+                        ifelse(pvalue < .01, "**", 
+                               ifelse(pvalue < .05, "*", "")))) %>%
+  select('Latent Factor'=lhs, 
+         Indicator=rhs, 
+         B=est, 
+         SE=se, Z=z, 
+         Beta=std.all, 
+         sig=stars) %>% 
+  kable(digits = 3, format="pandoc", caption=" Factor Loadings")
+
+
+```
+
+
+```{r}
+round(cbind(m1=inspect(cfa_fit, 'fit.measures'), m2=inspect(cfa_fit_2, 'fit.measures')),3)
+
+
+```
+
+#Omega
+```{r}
+
+str(domain_data) 
+
+omega(domain_data)
+```
+
+```{r}
+
+anova(cfa_fit, cfa_fit_2)
+
+```
+
+

@@ -1,0 +1,258 @@
+---
+title: "CRISIS_Factor_Pipeline COVID WORRIES Split_1 all recoded 3/25/21"
+
+author: "Aki Nikolaidis, Paul Bloom, Michelle VanTieghem"
+date: "3/25/21"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+Edited Factor analysis from CRISIS General - 8/11/20 BV & JD
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(readxl)
+library(corrplot)
+library(knitr)
+library(REdaS) # for diagnostic data checks before FA
+library(psych)# need for factor analysis
+library(GPArotation) # need for factor analysis
+library(polycor)
+library(lavaan)
+library(sjmisc)
+
+```
+
+#DATA ORGANIZATION
+```{r, Data_Organization}
+All_Site_Split1 <- read.csv("03_25_Split_1_across_All_sites.csv" , header = TRUE, sep = ",")
+
+All_Site_Split1 <- All_Site_Split1 %>%
+  mutate(readingtalking = ifelse(readingtalking == 1, 1,
+                                 ifelse(readingtalking ==2, 2,
+                                        ifelse(readingtalking ==3, 3,
+                                               ifelse(readingtalking ==4, 4,
+                                                      ifelse(readingtalking ==5, 5,
+                                                             ifelse(readingtalking==6, 1, "check")))))))
+
+All_Site_Split1 <- All_Site_Split1 %>%
+  mutate(worriedyourself = ifelse(worriedyourself == 1, 1,
+                                 ifelse(worriedyourself ==2, 2,
+                                        ifelse(worriedyourself ==3, 3,
+                                               ifelse(worriedyourself ==4, 4,
+                                                      ifelse(worriedyourself ==5, 5,
+                                                             ifelse(worriedyourself==6, 1, "check")))))))
+
+
+All_Site_Split1 <- All_Site_Split1 %>%
+  mutate(worriedothers = ifelse(worriedothers == 1, 1,
+                                 ifelse(worriedothers ==2, 2,
+                                        ifelse(worriedothers ==3, 3,
+                                               ifelse(worriedothers ==4, 4,
+                                                      ifelse(worriedothers ==5, 5,
+                                                             ifelse(worriedothers==6, 1, "check")))))))
+
+
+All_Site_Split1 <- All_Site_Split1 %>%
+  mutate(worriedphysical = ifelse(worriedphysical == 1, 1,
+                                 ifelse(worriedphysical ==2, 2,
+                                        ifelse(worriedphysical ==3, 3,
+                                               ifelse(worriedphysical ==4, 4,
+                                                      ifelse(worriedphysical ==5, 5,
+                                                             ifelse(worriedphysical==6, 1, "check")))))))
+
+
+All_Site_Split1 <- All_Site_Split1 %>%
+  mutate(worriedmental = ifelse(worriedmental == 1, 1,
+                                 ifelse(worriedmental ==2, 2,
+                                        ifelse(worriedmental ==3, 3,
+                                               ifelse(worriedmental ==4, 4,
+                                                      ifelse(worriedmental ==5, 5,
+                                                             ifelse(worriedmental==6, 1, "check")))))))
+
+
+All_Site_Split1$readingtalking <- as.numeric(All_Site_Split1$readingtalking)
+All_Site_Split1$worriedyourself <- as.numeric(All_Site_Split1$worriedyourself)
+All_Site_Split1$worriedothers <- as.numeric(All_Site_Split1$worriedothers)
+All_Site_Split1$worriedphysical <- as.numeric(All_Site_Split1$worriedphysical)
+All_Site_Split1$worriedmental <- as.numeric(All_Site_Split1$worriedmental)
+
+
+#selecting the items for the factor to be analyzed using EFA (covid_worries):
+domain_data <- All_Site_Split1 %>% select(worriedyourself, worriedothers, worriedphysical, worriedmental, readingtalking)
+domain_data<-domain_data[complete.cases(domain_data),]
+
+
+#Calculate polychoric correlation matrices
+res <- cor(domain_data)
+round(res, 2)
+```
+
+## PARALLEL ANALYSIS ####
+
+```{r message=TRUE, warning=TRUE}
+# iterations increased to get a more stable estimate! 
+dom_polycor <- hetcor(domain_data, ML=TRUE)
+dom_par_analysis <- fa.parallel(dom_polycor$correlations, n.obs = nrow(domain_data), n.iter = 1000, error.bars = TRUE)
+dev.off()
+
+dom_par_analysis$nfact
+
+#save(dom_par_analysis, file = paste0('../output/', analysis_name, '/parallel_analysis_results.Rdata'))
+
+```
+
+
+
+
+# Test assumptions 
+## Bartlett’s test of sphericity
+
+checks whether or not the observed variablesintercorrelate at all using the observed correlation matrix against the identity matrix. If the test found statistically insignificant, you should not employ a factor analysis.
+```{r}
+# All datasets pass test of significance 
+bart_spher(domain_data)
+```
+
+## vss Very Simple Structure for number of factors to use
+Revelle and Rocklin (1979) applies a goodness of fit test to
+determine the optimal number of factors to extract. It can be thought of as a quasiconfirmatory model, in that it fits the very simple structure (all except the biggest loadings per item are set to zero where c is the level of complexity of the item) of a factor pattern matrix to the original correlation matrix. 
+
+
+
+```{r, warning = F, message=F}
+
+
+vss(dom_polycor$correlations, n.obs = nrow(domain_data), rorate ="oblimin")
+
+```
+
+
+# Factor analysis of the data
+https://www.rdocumentation.org/packages/psych/versions/1.8.12/topics/fa
+Factor analyze (see section 5.1) the data with a specified number of factors (the
+default is 1), the default method is minimum residual, the default rotation for more
+than one factor is oblimin.
+
+change to maximum likelihood with fm = "ML"
+scores = tenBurgeis the default, we want Bartlett. 
+
+## First decide how many factors
+this is using the results from the parallel analysis 
+```{r}
+NumFactors <- dom_par_analysis$nfact
+
+
+```
+
+## Run factor analysis with oblimin rotation 
+```{r}
+# this function requires correlations of data variables
+# maximum likelihood 
+FA <- psych::fa(r = dom_polycor$correlations, n.obs = nrow(domain_data), nfactors = NumFactors, fm="ML", scores = "Bartlett", rotate = 'oblimin')
+FA
+
+#save(FA, file = paste0('../output/', analysis_name, '/FA_model.Rdata'))
+
+```
+
+
+## get the eigenvalues 
+question is whether this goes in order that we want?
+```{r}
+# e.values are eigenvalues 
+FA_eigen <- data.frame(FA$e.values)
+names(FA_eigen) <- "eigenvalues"
+# assigning Factor number in numeric order 
+FA_eigen$factors <- as.numeric(as.character(rownames(FA_eigen)))
+FA_eigen
+#save(FA_eigen, file = paste0('../output/', analysis_name, '/FA_eigenvalues.Rdata'))
+```
+
+## variance accounted for 
+```{r}
+FA_variance <- data.frame(FA$Vaccounted)
+# changing the names to be in numeric order, based on amount of variance explained.
+names(FA_variance) <- c(1:ncol(FA_variance))
+
+# adding labels for the different values provided in this dataset 
+FA_variance <- FA_variance %>%
+  mutate(value = rownames(data.frame(FA$Vaccounted)))
+FA_variance
+
+#save(FA_variance, file = paste0('../output/', analysis_name, '/FA_variance_accounted.Rdata'))
+```
+
+## An item by factor (pattern) loading matrix of class loadings. 
+note: the factors are numbered BEFORE rotation, so they're actually not in the order we want them to be in! 
+```{r}
+# show factor loadings with model output 
+
+print(FA, cuttoff = 0, sort = T, digits = 3)
+#AFullSample$loadings
+```
+
+
+## get Sample loadings 
+```{r}
+# get loadings
+FA_loadings <- data.frame(matrix(FA$loadings, ncol = NumFactors))
+# rename them based on numeric order, of variance explained, not original (un-rotated) labels 
+names(FA_loadings) <- c(1:NumFactors)
+
+# get variable names & weights for later. 
+FA_weights <- data.frame(FA$weights)
+# rename weights based on numeric order, of variance explained, not original (un-rotated) labels 
+names(FA_weights) <- c(1:NumFactors)
+
+FA_weights <- FA_weights %>%
+  # pull out variable labels
+  mutate(variables = rownames(data.frame(FA$weights))) 
+# add thse labels to the loadings too 
+FA_loadings$variables <- FA_weights$variables
+#save(FA_loadings, file = paste0('../output/', analysis_name, '/FA_loadings_wide.Rdata'))
+# convert to long format 
+FA_loadings_df_long <- FA_loadings %>%
+  gather(key = factor, value = loading, 1:NumFactors)
+FA_loadings_df_long
+#save(FA_loadings_df_long, file = paste0('../output/', analysis_name, '/FA_loadings_df_long.Rdata'))
+```
+
+
+## get scores for each subjects 
+The beta weights to find the factor score estimates. These are also used by the predict.psych function to find predicted factor scores for new cases. These weights will depend upon the scoring method requested.
+```{r}
+
+# get raw data into matrix format 
+domain_matrix <- domain_data %>%
+  as.matrix(.)
+
+## FULL SAMPLE VERSION with labels! 
+weights_matrix <- FA_weights %>%
+  select(-variables) %>%
+    as.matrix(.)
+
+# get pacct labels to add to predictions,
+
+domain_labels <- domain_data %>%
+  mutate(subject = as.numeric(rownames(domain_data)))
+nrow(domain_labels)
+
+FAsubject_scores <- cbind(domain_labels, domain_matrix%*%weights_matrix)
+
+#save(FAsubject_scores, file = paste0('../output/', analysis_name, '/FA_subject_factor_scores.Rdata'))
+                                            
+```
+
